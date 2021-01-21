@@ -190,13 +190,27 @@ def get_reviews(film_link):
     if table is None:
         return None
 
+    empty = table.find('div', id='no_content')
+
+    if empty is not None:
+        return None
+
     review_links = table.find_all('a')
     result_links = []
+    count = 0
 
-    for link in review_links[:10]:
-        result_links.append(link.text)
+    for link in review_links:
+        try:
+            review_request = requests.get(imdb_url + link['href'], timeout=3)
+            result_links.append(link.text + " " + review_request.url)
+        except Exception:
+            continue
+        count += 1
+        if count > 2:
+            break
 
     return result_links
+
 
 def download_media(title_overview, film_title):
     # download poster
@@ -228,7 +242,7 @@ def get_film_data(film_id, film_title, film_link):
     details = bottom.find('div', id='titleDetails')
 
     # get media
-     download_media(title_overview, film_title)
+    # download_media(title_overview, film_title)
 
     # get general data
 
@@ -301,46 +315,46 @@ def get_film_data(film_id, film_title, film_link):
                   date, keywords, reviews)
 
 
-     create txt file
-     with open(film_title + delimeter + film_title + '.txt', 'w') as f:
-         f.write(film_title + '\n\n')
-    
-         f.write('Director: ' + director_name + '\n\n')
-    
-         f.write('Genres:' + '\n')
-         for genre in genres:
-             f.write('\t' + genre.strip() + '\n')
-         f.write('\n')
-    
-         f.write('Country:' + '\n')
-         for country in countries:
-             f.write('\t' + country.strip() + '\n')
-         f.write('\n')
-    
-         f.write('Prodaction Co:' + '\n')
-         for company in companies:
-             f.write('\t' + company.strip() + '\n')
-         f.write('\n')
-    
-         if date is not None:
-             f.write('Release Date: ' + date.strip() + '\n\n')
-    
-         f.write('Keywords:' + '\n')
-         for keyword in keywords:
-             f.write('\t' + keyword.strip() + '\n')
-         f.write('\n')
-    
-         f.write('Reviews:' + '\n')
-         for title in reviews:
-             f.write('\t' + title.strip() + '\n')
-         f.write('\n')
+    # create txt file
+    # with open(film_title + delimeter + film_title + '.txt', 'w') as f:
+    #     f.write(film_title + '\n\n')
+    #
+    #     f.write('Director: ' + director_name + '\n\n')
+    #
+    #     f.write('Genres:' + '\n')
+    #     for genre in genres:
+    #         f.write('\t' + genre.strip() + '\n')
+    #     f.write('\n')
+    #
+    #     f.write('Country:' + '\n')
+    #     for country in countries:
+    #         f.write('\t' + country.strip() + '\n')
+    #     f.write('\n')
+    #
+    #     f.write('Prodaction Co:' + '\n')
+    #     for company in companies:
+    #         f.write('\t' + company.strip() + '\n')
+    #     f.write('\n')
+    #
+    #     if date is not None:
+    #         f.write('Release Date: ' + date.strip() + '\n\n')
+    #
+    #     f.write('Keywords:' + '\n')
+    #     for keyword in keywords:
+    #         f.write('\t' + keyword.strip() + '\n')
+    #     f.write('\n')
+    #
+    #     f.write('Reviews:' + '\n')
+    #     for review in reviews:
+    #         f.write('\t' + review + '\n')
+    #     f.write('\n')
 
 
 def proccess_film(film_id, film_title):
     film_title = film_title.replace('/', '-')
 
-     if not os.path.exists(film_title):
-         os.mkdir(film_title)
+    # if not os.path.exists(film_title):
+    #     os.mkdir(film_title)
 
     link = find_film(film_title)
 
@@ -386,42 +400,46 @@ def write_in_xlsx(id, film_id, director, genres, country, production_co,
 
 
 def set_empty_reviews():
-    # sheets = wb.sheetnames
-    #
     data_sheet = wb['films_data']
 
     for row in range(1, data_sheet.max_row):
         if data_sheet.cell(row=row, column=9).value.strip() == 'External Reviews submission guide.':
             data_sheet.cell(row=row, column=9).value = 'None'
 
-    # std = wb.get_sheet_by_name('Sheet')
-    # wb.remove_sheet(std)
     wb.save(captions_table)
 
 
+def remove_empty_sheet():
+    std = wb['Sheet']
 
- def main():
-     films = database.get_not_proceeded_films()
-     ids = []
+    wb.remove_sheet(std)
+    wb.save(captions_table)
 
-     for id, film in films:
-         print(id, film)
-         # parse film data
-         proccess_film(id, film)
 
-         ids.append(id)
-         if len(ids) >= 20:
-             # update DB data
-             for film_id in ids:
-                 database.update_film(film_id, DONE)
+def main():
+    films = database.get_not_proceeded_films()
+    ids = []
 
-             # clear id list
-             ids.clear()
-             # save xlsx file
-             wb.save(captions_table)
-             print("Saved")
-             time.sleep(3)
+    for id, film in films:
+        print(id, film)
+        # parse film data
+        proccess_film(id, film)
 
-     wb.save(captions_table)
+        ids.append(id)
+        if len(ids) >= 20:
+            # update DB data
+            for film_id in ids:
+                database.update_film(film_id, DONE)
 
- main()
+            # clear id list
+            ids.clear()
+            # save xlsx file
+            wb.save(captions_table)
+            print("Saved")
+            time.sleep(3)
+
+    wb.save(captions_table)
+
+
+main()
+
